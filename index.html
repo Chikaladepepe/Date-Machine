@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Date Night Planner Pro</title>
+    <style>
+        body { background: linear-gradient(135deg, #1a0b2e, #6a1b9a, #ad1457); color: white; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; min-height: 100vh; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; overflow-x: hidden; }
+        
+        #setup-screen, #machine-screen { width: 100%; max-width: 480px; text-align: center; }
+        #machine-screen { display: none; }
+
+        .chip-container { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0; background: rgba(0,0,0,0.2); border-radius: 20px; padding: 15px; max-height: 250px; overflow-y: auto; }
+        .chip { padding: 8px 12px; background: rgba(255,255,255,0.1); border: 1.5px solid white; border-radius: 20px; cursor: pointer; transition: 0.2s; font-size: 14px; }
+        .chip.selected { background: white; color: #ad1457; font-weight: bold; transform: scale(1.05); }
+
+        #machine { display: flex; gap: 10px; background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 25px; border: 4px solid white; box-shadow: 0 30px 60px rgba(0,0,0,0.6); justify-content: center; position: relative; }
+        .slot { width: 85px; height: 110px; background: white; border-radius: 15px; overflow: hidden; position: relative; border: 1.5px solid #333; }
+        
+        /* Smooth slowing down animation */
+        .reel { position: absolute; top: 0; width: 100%; transition: transform 6.5s cubic-bezier(0.1, 0, 0, 1); will-change: transform; }
+        .item { height: 110px; display: flex; align-items: center; justify-content: center; font-size: 45px; }
+
+        #guide-box { margin-top: 25px; background: #fff; color: #222; padding: 25px; border-radius: 20px; opacity: 0; transform: translateY(30px); transition: 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align: left; box-shadow: 0 15px 40px rgba(0,0,0,0.4); }
+        #guide-box h3 { margin: 0 0 15px 0; color: #ad1457; font-size: 20px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #fce4ec; padding-bottom: 8px; }
+        .plan-step { margin-bottom: 12px; font-size: 14px; line-height: 1.5; }
+        .plan-step b { color: #ad1457; display: block; font-size: 12px; text-transform: uppercase; margin-bottom: 2px; }
+
+        button { margin-top: 30px; padding: 18px 50px; font-size: 18px; font-weight: bold; color: #ad1457; background: white; border: none; border-radius: 50px; cursor: pointer; transition: 0.3s; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-transform: uppercase; }
+        button:disabled { opacity: 0.5; }
+
+        #watermark { position: fixed; bottom: 20px; right: 20px; font-size: 11px; opacity: 0.5; letter-spacing: 1.5px; text-transform: uppercase; pointer-events: none; }
+        #policy-btn { position: fixed; bottom: 20px; left: 20px; font-size: 10px; opacity: 0.4; cursor: pointer; text-decoration: underline; }
+
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+        #modal-content { background: white; color: #333; padding: 30px; border-radius: 20px; max-width: 380px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <h2 style="font-weight: 300; letter-spacing: 1px;">DATE NIGHT <b style="font-weight: 900;">PLANNER</b></h2>
+        <div id="chip-container" class="chip-container"></div>
+        <button onclick="startMachine()">Lock in Plans</button>
+    </div>
+
+    <div id="machine-screen">
+        <div id="machine">
+            <div class="slot"><div class="reel" id="reel1"></div></div>
+            <div class="slot"><div class="reel" id="reel2"></div></div>
+            <div class="slot"><div class="reel" id="reel3"></div></div>
+        </div>
+        
+        <div id="guide-box">
+            <h3>Our Perfect Date</h3>
+            <div class="plan-step" id="plan-food"></div>
+            <div class="plan-step" id="plan-act"></div>
+            <div class="plan-step" id="plan-vibe"></div>
+        </div>
+
+        <button id="spin-btn" onclick="spin()">Spin for Love</button>
+        <p onclick="location.reload()" style="margin-top: 25px; font-size: 11px; opacity: 0.5; cursor: pointer;">← Change Options</p>
+    </div>
+
+    <div id="watermark">DailyLoveProjects</div>
+    <div id="policy-btn" onclick="toggleModal(true)">Usage Policy</div>
+
+    <div id="modal" onclick="toggleModal(false)">
+        <div id="modal-content" onclick="event.stopPropagation()">
+            <h2>DailyLoveProjects</h2>
+            <p>If you post a video or screenshot of your date spin, please tag <b>@DailyLoveProjects</b> on Instagram.</p>
+            <button onclick="toggleModal(false)" style="margin-top: 15px; padding: 12px 25px; font-size: 14px;">I AGREE</button>
+        </div>
+    </div>
+
+    <script>
+        const fullMasterList = [
+            { emoji: "🍕", type: "food", options: ["Pizza Picnic: Grab a box and eat at a park.", "DIY Pizza: Buy dough and make a weird topping combo.", "Pizza Crawl: Try a slice from 3 different shops.", "Fancy Pizzeria: Go to the highest-rated spot in town.", "Movie Pizza: Stay in and order from your childhood favorite spot."] },
+            { emoji: "🍣", type: "food", options: ["Sushi Train: Go to a conveyor belt sushi spot.", "Omakase: Let the chef choose your dinner.", "Sushi Kit: Try making basic rolls at home.", "Sashimi Night: Order a platter of the freshest fish.", "Supermarket Sushi: Low-key date with grocery store rolls at a lookout."] },
+            { emoji: "🌮", type: "food", options: ["Taco Street Truck: Visit the busiest truck you can find.", "Home Taco Bar: Cook 3 different fillings tonight.", "Taco Crawl: Eat 1 taco at 3 different locations.", "Gourmet Tacos: Find a modern Mexican fusion restaurant.", "Taco Beach Picnic: Take your order to the nearest water view."] },
+            { emoji: "🍔", type: "food", options: ["Gourmet Burger: Visit a sit-down burger bar.", "Drive-Thru: Eat in the car at a beautiful view.", "Burger Battle: Buy from two spots and judge the winner.", "Homemade Sliders: Make mini burgers with unique sauces.", "Classic Diner: Find an old-school diner for shakes and burgers."] },
+            { emoji: "🍝", type: "food", options: ["Italian Feast: Find a family-owned trattoria.", "Lady & The Tramp: Share one large spaghetti bowl.", "Pasta Making: Try making fresh noodles from scratch.", "Gnocchi Night: Find a spot that specializes in dumplings.", "Wine & Pasta: Pair your favorite bottle with a red sauce dish."] },
+            { emoji: "🍜", type: "food", options: ["Ramen Shop: Head to a cozy ramen bar.", "Noodle Crawl: Try different noodle dishes.", "Spicy Challenge: See who can handle the hottest ramen.", "Late Night Pho: Perfect for a cold evening.", "Instant Ramen DIY: Dress up some home ramen with fancy toppings."] },
+            { emoji: "🎬", type: "act", options: ["IMAX Experience: See a blockbuster on the biggest screen.", "Blanket Fort: Build a fort and watch a 90s classic.", "Indie Cinema: Visit a small, artistic movie theater.", "Drive-In: Find an outdoor screen and park up.", "Double Feature: Two movies back-to-back with themed snacks."] },
+            { emoji: "🎮", type: "act", options: ["Arcade High Score: Go to a barcade and play PacMan.", "Gaming Marathon: Pick a co-op game and beat one level.", "VR Date: Visit a Virtual Reality center.", "Mario Kart Stakes: Winner picks the next date night.", "Vintage Console: Hook up an old Nintendo/Sega."] },
+            { emoji: "🎳", type: "act", options: ["Cosmic Bowling: Go when the neon lights are on.", "Trick Shot Battle: Try to bowl between your legs.", "Arcade Bowling: Play the mini version at a fun center.", "Double Date: Invite another couple for a match.", "Winner Buys: High score gets a free drink."] },
+            { emoji: "🎨", type: "act", options: ["Bob Ross Night: Follow a tutorial together.", "Sketching in the Park: Draw each other's portraits.", "Pottery Class: Try a local clay throwing session.", "Finger Painting: Get messy and creative at home.", "Street Art Walk: Hunt for the best murals in your city."] },
+            { emoji: "🎤", type: "act", options: ["Private Karaoke: Rent a room and sing your hearts out.", "Duet Challenge: Sing only duets all night.", "Lip Sync Battle: Performance mode in the living room.", "Open Mic Night: Go watch local talent perform.", "Concert Video: Watch a live performance of your favorite band."] },
+            { emoji: "✨", type: "vibe", options: ["Gala Ready: Dress like you're on the red carpet.", "Surprise Trip: Flip a coin for every turn while driving.", "Photo Shoot: Take aesthetic photos of each other.", "Stargazing: Drive away from city lights and look up.", "No Phones: Total digital detox for the entire night."] },
+            { emoji: "🕯️", type: "vibe", options: ["Candlelit Room: Turn off all electric lights at home.", "Late Night Walk: Wander through a quiet, lit-up area.", "Love Letters: Write notes to each other to read later.", "Slow Dance: Play your song and dance in the kitchen.", "Deep Talk: Use 'Conversation Starters' cards."] },
+            { emoji: "🌅", type: "vibe", options: ["Sunset View: Drive to the highest point nearby.", "Sunrise Hike: Wake up early for the ultimate view.", "Golden Hour: Time your date for the best lighting.", "Beach Walk: Nothing beats the sound of the ocean.", "Rooftop Drinks: Find a bar with a high-up view."] }
+        ];
+
+        let selectedItems = [...fullMasterList];
+        const container = document.getElementById('chip-container');
+        fullMasterList.forEach(item => {
+            const chip = document.createElement('div');
+            chip.className = 'chip selected';
+            chip.innerText = item.emoji;
+            chip.onclick = () => {
+                chip.classList.toggle('selected');
+                const index = selectedItems.indexOf(item);
+                if (index > -1) selectedItems.splice(index, 1);
+                else selectedItems.push(item);
+            };
+            container.appendChild(chip);
+        });
+
+        function toggleModal(show) { document.getElementById('modal').style.display = show ? 'flex' : 'none'; }
+
+        function startMachine() {
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('machine-screen').style.display = 'block';
+            buildReels();
+        }
+
+        function buildReels() {
+            ['food', 'act', 'vibe'].forEach((type, i) => {
+                const reel = document.getElementById(`reel${i+1}`);
+                const pool = selectedItems.filter(item => item.type === type);
+                // MEGA BUFFER: We repeat the list 40 times so it never runs out during the long spin
+                const fullList = Array(40).fill(pool).flat();
+                reel.innerHTML = '';
+                fullList.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'item';
+                    div.innerText = item.emoji;
+                    reel.appendChild(div);
+                });
+            });
+        }
+
+        function spin() {
+            const btn = document.getElementById('spin-btn');
+            const box = document.getElementById('guide-box');
+            btn.disabled = true;
+            box.style.opacity = '0';
+
+            let finalSelections = [];
+            ['food', 'act', 'vibe'].forEach((type, i) => {
+                const pool = selectedItems.filter(item => item.type === type);
+                const index = Math.floor(Math.random() * pool.length);
+                const selectedEmoji = pool[index];
+                const randomPlan = selectedEmoji.options[Math.floor(Math.random() * selectedEmoji.options.length)];
+                finalSelections.push(randomPlan);
+
+                // Long suspense rotations
+                const rotations = 10 + (i * 4); 
+                const offset = (index + (pool.length * rotations)) * 110;
+                document.getElementById(`reel${i+1}`).style.transform = `translateY(-${offset}px)`;
+            });
+
+            setTimeout(() => {
+                document.getElementById('plan-food').innerHTML = `<b>Dinner:</b> ${finalSelections[0]}`;
+                document.getElementById('plan-act').innerHTML = `<b>Activity:</b> ${finalSelections[1]}`;
+                document.getElementById('plan-vibe').innerHTML = `<b>The Vibe:</b> ${finalSelections[2]}`;
+                box.style.opacity = '1';
+                btn.disabled = false;
+            }, 7000); 
+        }
+    </script>
+</body>
+          </html>
